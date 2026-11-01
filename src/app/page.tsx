@@ -11,6 +11,7 @@ import { MusicView } from '@/components/MusicView';
 import { AnalyticsView } from '@/components/AnalyticsView';
 import { StudyGroupsView } from '@/components/StudyGroupsView';
 import { SettingsView } from '@/components/SettingsView';
+import { AuthModal } from '@/components/AuthModal';
 
 function MainAppContent() {
   const { activeTab } = useApp();
@@ -30,6 +31,7 @@ function MainAppContent() {
       </main>
 
       <Footer />
+      <AuthModal />
     </div>
   );
 }

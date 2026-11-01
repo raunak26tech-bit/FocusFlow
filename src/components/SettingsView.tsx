@@ -7,18 +7,26 @@ import {
   Clock,
   Target,
   Volume2,
-  Trash2,
   Download,
   RotateCcw,
   Check,
-  Sparkles,
+  Cloud,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { soundEngine } from '@/lib/audio';
 import { getInitialSessions } from '@/lib/storage';
 
 export const SettingsView: React.FC = () => {
-  const { settings, updateSettings, sessions } = useApp();
+  const {
+    settings,
+    updateSettings,
+    sessions,
+    user,
+    openAuthModal,
+    signOut,
+  } = useApp();
 
   const [studentName, setStudentName] = useState(settings.studentName);
   const [gradeLevel, setGradeLevel] = useState(settings.gradeLevel);
@@ -89,6 +97,70 @@ export const SettingsView: React.FC = () => {
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
+        {/* Supabase Cloud Account Card */}
+        <div className="rounded-2xl bg-[#090f0b] border border-[#182c1f] p-6 space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-[#142419]">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-400">
+              <Cloud className="w-4 h-4" />
+              <span>Supabase Cloud Account</span>
+            </div>
+            {user ? (
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Cloud Sync Active</span>
+              </span>
+            ) : (
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                Local Storage Mode
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              {user ? (
+                <>
+                  <div className="text-xs font-bold text-white">
+                    Logged in as: <span className="text-emerald-300 font-mono">{user.email}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Your focus sessions, daily goals, and settings are continuously backed up to your Supabase PostgreSQL database.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="text-xs font-bold text-white">
+                    Currently studying in Guest Mode
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Sign in or create a student account to sync your study records across any laptop or desktop.
+                  </p>
+                </>
+              )}
+            </div>
+
+            {user ? (
+              <button
+                type="button"
+                onClick={signOut}
+                className="px-4 py-2 rounded-xl bg-red-950/30 hover:bg-red-900/40 text-red-300 border border-red-500/30 text-xs font-semibold flex items-center gap-2 transition-all shrink-0"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openAuthModal('signin')}
+                className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-2 transition-all shadow-md shadow-emerald-500/20 shrink-0"
+              >
+                <LogIn className="w-3.5 h-3.5 fill-slate-950" />
+                <span>Sign In / Create Account</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Student Profile Card */}
         <div className="rounded-2xl bg-[#090f0b] border border-[#182c1f] p-6 space-y-5">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-400 pb-2 border-b border-[#142419]">

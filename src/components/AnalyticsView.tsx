@@ -9,7 +9,6 @@ import {
   Clock,
   PieChart,
   Lightbulb,
-  ArrowUpRight,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 

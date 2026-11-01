@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import {
   Sparkles,
   Play,
-  Pause,
   Clock,
   Music,
   BarChart2,
@@ -12,18 +11,15 @@ import {
   CheckCircle2,
   ArrowRight,
   Flame,
-  ShieldCheck,
-  Zap,
   BookOpen,
-  Volume2,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
 export const LandingPage: React.FC = () => {
-  const { setActiveTab, setPreset, startTimer, isRunning } = useApp();
+  const { setActiveTab, setPreset, startTimer } = useApp();
 
   // Mini preview state for the hero widget
-  const [heroSeconds, setHeroSeconds] = useState(25 * 60);
+  const [heroSeconds] = useState(25 * 60);
   const [heroActive, setHeroActive] = useState(false);
 
   const heroMin = Math.floor(heroSeconds / 60);

@@ -11,7 +11,6 @@ import {
   Sparkles,
   BookOpen,
   Coffee,
-  CheckCircle2,
   Sliders,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
@@ -26,7 +25,6 @@ export const TimerView: React.FC = () => {
     isRunning,
     startTimer,
     pauseTimer,
-    resumeTimer,
     resetTimer,
     setPreset,
     skipTimer,

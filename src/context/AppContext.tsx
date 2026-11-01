@@ -20,6 +20,8 @@ import {
   saveStoredRooms,
 } from '@/lib/storage';
 import { soundEngine } from '@/lib/audio';
+import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 interface AmbientTrackState {
   isPlaying: boolean;
@@ -39,6 +41,22 @@ interface AppContextType {
   joinRoom: (roomId: string) => void;
   activeRoomId: string | null;
   setActiveRoomId: (id: string | null) => void;
+
+  // Supabase Auth
+  user: User | null;
+  isAuthModalOpen: boolean;
+  authModalMode: 'signin' | 'signup';
+  openAuthModal: (mode?: 'signin' | 'signup') => void;
+  closeAuthModal: () => void;
+  setAuthModalMode: (mode: 'signin' | 'signup') => void;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    gradeLevel: string
+  ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  signOut: () => Promise<void>;
 
   // Timer controls
   timerMode: TimerMode;
@@ -78,6 +96,167 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [rooms, setRooms] = useState<StudyRoom[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+
+  // Supabase Auth state
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
+
+  const openAuthModal = useCallback((mode: 'signin' | 'signup' = 'signin') => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  }, []);
+
+  const closeAuthModal = useCallback(() => {
+    setIsAuthModalOpen(false);
+  }, []);
+
+  // Sync profile and study sessions when user logs in
+  const syncUserCloudData = useCallback(async (userId: string) => {
+    if (!supabase) return;
+    try {
+      // 1. Fetch Profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profile) {
+        setSettings((prev) => {
+          const updated = {
+            ...prev,
+            studentName: profile.student_name || prev.studentName,
+            gradeLevel: profile.grade_level || prev.gradeLevel,
+          };
+          saveStoredSettings(updated);
+          return updated;
+        });
+      }
+
+      // 2. Fetch Sessions
+      const { data: cloudSessions } = await supabase
+        .from('study_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('completed_at', { ascending: false });
+
+      if (cloudSessions && cloudSessions.length > 0) {
+        const mappedSessions: StudySession[] = cloudSessions.map((s: {
+          id: string;
+          subject: string;
+          topic?: string;
+          duration_minutes: number;
+          completed_at: string;
+          mode: string;
+          date_key: string;
+        }) => ({
+          id: s.id,
+          subject: s.subject,
+          topic: s.topic,
+          durationMinutes: s.duration_minutes,
+          completedAt: s.completed_at,
+          mode: s.mode as TimerMode,
+          dateKey: s.date_key,
+        }));
+        setSessions(mappedSessions);
+        saveStoredSessions(mappedSessions);
+      }
+    } catch (e) {
+      console.warn('Error syncing cloud data:', e);
+    }
+  }, []);
+
+  // Listen to Supabase Auth State
+  useEffect(() => {
+    if (!supabase) return;
+
+    // Check existing active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        syncUserCloudData(session.user.id);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        syncUserCloudData(session.user.id);
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [syncUserCloudData]);
+
+  // Auth Action handlers
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      if (!supabase) {
+        return { error: 'Supabase client is not configured yet.' };
+      }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
+        return { error: error.message };
+      }
+      if (data.user) {
+        setUser(data.user);
+        syncUserCloudData(data.user.id);
+      }
+      return { error: null };
+    },
+    [syncUserCloudData]
+  );
+
+  const signUp = useCallback(
+    async (email: string, password: string, fullName: string, gradeLevel: string) => {
+      if (!supabase) {
+        return { error: 'Supabase client is not configured yet.', needsConfirmation: false };
+      }
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            grade_level: gradeLevel,
+          },
+        },
+      });
+      if (error) {
+        return { error: error.message, needsConfirmation: false };
+      }
+      const needsConfirmation = !data.session && Boolean(data.user);
+      if (data.user) {
+        setUser(data.user);
+        // Upsert profile in Supabase
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          student_name: fullName,
+          grade_level: gradeLevel,
+        });
+        syncUserCloudData(data.user.id);
+      }
+      return { error: null, needsConfirmation };
+    },
+    [syncUserCloudData]
+  );
+
+  const signOut = useCallback(async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    setUser(null);
+  }, []);
 
   // Timer state
   const [timerMode, setTimerMode] = useState<TimerMode>('focus');
@@ -121,8 +300,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveStoredSettings(updated);
         return updated;
       });
+
+      // Sync settings with Supabase if logged in
+      if (supabase && user) {
+        if (newSettings.studentName || newSettings.gradeLevel) {
+          supabase
+            .from('profiles')
+            .update({
+              student_name: newSettings.studentName,
+              grade_level: newSettings.gradeLevel,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', user.id)
+            .then();
+        }
+
+        supabase
+          .from('user_settings')
+          .upsert({
+            user_id: user.id,
+            daily_goal_minutes: newSettings.dailyGoalMinutes,
+            pomodoro_focus_minutes: newSettings.pomodoroFocusMinutes,
+            pomodoro_short_break_minutes: newSettings.pomodoroShortBreakMinutes,
+            pomodoro_long_break_minutes: newSettings.pomodoroLongBreakMinutes,
+            sound_enabled: newSettings.soundEnabled,
+            auto_start_breaks: newSettings.autoStartBreaks,
+            updated_at: new Date().toISOString(),
+          })
+          .then();
+      }
     },
-    []
+    [user]
   );
 
   // Add study session
@@ -141,17 +349,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveStoredSessions(updated);
         return updated;
       });
+
+      // Sync study session with Supabase if logged in
+      if (supabase && user) {
+        supabase
+          .from('study_sessions')
+          .insert({
+            user_id: user.id,
+            subject: newSession.subject,
+            topic: newSession.topic || '',
+            duration_minutes: newSession.durationMinutes,
+            mode: newSession.mode,
+            completed_at: session.completedAt,
+            date_key: session.dateKey,
+          })
+          .then(({ error }) => {
+            if (error) console.warn('Supabase session insert notice:', error.message);
+          });
+      }
     },
-    []
+    [user]
   );
 
-  const deleteSession = useCallback((id: string) => {
-    setSessions((prev) => {
-      const updated = prev.filter((s) => s.id !== id);
-      saveStoredSessions(updated);
-      return updated;
-    });
-  }, []);
+  const deleteSession = useCallback(
+    (id: string) => {
+      setSessions((prev) => {
+        const updated = prev.filter((s) => s.id !== id);
+        saveStoredSessions(updated);
+        return updated;
+      });
+
+      // Delete from Supabase if logged in
+      if (supabase && user) {
+        supabase
+          .from('study_sessions')
+          .delete()
+          .eq('id', id)
+          .then();
+      }
+    },
+    [user]
+  );
 
   // Study Rooms
   const addRoom = useCallback(
@@ -403,7 +641,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    let checkDate = new Date(firstDate);
+    const checkDate = new Date(firstDate);
     for (const dStr of uniqueDates) {
       const d = new Date(dStr);
       d.setHours(0, 0, 0, 0);
@@ -433,6 +671,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         joinRoom,
         activeRoomId,
         setActiveRoomId,
+        user,
+        isAuthModalOpen,
+        authModalMode,
+        openAuthModal,
+        closeAuthModal,
+        setAuthModalMode,
+        signIn,
+        signUp,
+        signOut,
         timerMode,
         timeLeft,
         totalDuration,

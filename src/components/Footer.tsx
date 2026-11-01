@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Sparkles, Heart, Shield, Terminal, ArrowUpRight } from 'lucide-react';
+import { Sparkles, Heart, Shield, ArrowUpRight } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
 export const Footer: React.FC = () => {

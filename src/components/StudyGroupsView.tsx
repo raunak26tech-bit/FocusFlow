@@ -5,18 +5,10 @@ import {
   Users,
   Plus,
   Search,
-  Sparkles,
   CheckCircle,
-  Clock,
-  Shield,
-  ArrowRight,
-  Flame,
   X,
-  Send,
-  Heart,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { StudyRoom } from '@/types';
 import confetti from 'canvas-confetti';
 
 export const StudyGroupsView: React.FC = () => {
@@ -189,9 +181,16 @@ export const StudyGroupsView: React.FC = () => {
 
           {/* Cheer buttons */}
           <div className="p-4 rounded-xl bg-[#090f0b] border border-[#182c1f] flex flex-wrap items-center justify-between gap-3">
-            <span className="text-xs text-slate-300 font-medium">
-              Send silent encouragement to study peers:
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-300 font-medium">
+                Send silent encouragement to study peers:
+              </span>
+              {cheers.map((c, i) => (
+                <span key={i} className="animate-bounce text-base">
+                  {c}
+                </span>
+              ))}
+            </div>
             <div className="flex items-center gap-2">
               {['👏 Great Focus!', '🔥 Keep Crushing It', '💪 Halfway There', '⭐ 100% Target'].map(
                 (cheerText) => (

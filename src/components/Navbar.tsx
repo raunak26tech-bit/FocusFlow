@@ -13,6 +13,8 @@ import {
   Menu,
   X,
   Volume2,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { ActiveTab } from '@/types';
@@ -26,6 +28,10 @@ export const Navbar: React.FC = () => {
     timeLeft,
     activeSubject,
     ambientTracks,
+    user,
+    openAuthModal,
+    signOut,
+    settings,
   } = useApp();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -135,6 +141,33 @@ export const Navbar: React.FC = () => {
             <span>{currentStreak} {currentStreak === 1 ? 'Day' : 'Days'} Streak</span>
           </div>
 
+          {/* Supabase Auth Profile / Sign In */}
+          {user ? (
+            <div className="flex items-center gap-1.5 bg-[#0c140f] p-1 pr-2 rounded-lg border border-[#182c1f]">
+              <div className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-xs font-bold">
+                {settings.studentName.charAt(0).toUpperCase() || 'S'}
+              </div>
+              <span className="text-xs text-white font-medium max-w-[85px] truncate">
+                {settings.studentName}
+              </span>
+              <button
+                onClick={signOut}
+                className="p-1 text-slate-400 hover:text-red-400 rounded transition-colors ml-0.5"
+                title="Sign Out of Supabase"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => openAuthModal('signin')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0e1711] border border-[#1b3123] text-xs font-semibold text-slate-200 hover:text-white hover:border-emerald-500/40 transition-all"
+            >
+              <LogIn className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Sign In</span>
+            </button>
+          )}
+
           {/* Landing / App View Toggle */}
           {activeTab === 'landing' ? (
             <button
@@ -212,6 +245,34 @@ export const Navbar: React.FC = () => {
               </button>
             );
           })}
+
+          <div className="pt-2 border-t border-[#182c1f] mt-2">
+            {user ? (
+              <div className="flex items-center justify-between px-3 py-2 text-xs text-slate-300">
+                <span className="truncate max-w-[200px]">Logged in: {user.email}</span>
+                <button
+                  onClick={() => {
+                    signOut();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="text-red-400 font-semibold"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  openAuthModal('signin');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Sign In / Create Account</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
     </header>
